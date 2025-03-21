@@ -43,8 +43,6 @@ class MicromouseMapper:
         self.add_unexplored_nodes(position, can_go_front, can_go_right, can_go_left, orientation)
         self.visited.add(position)
 
-        
-
     def add_unexplored_nodes(self, position, can_go_front, can_go_right, can_go_left, orientation):
         x, y = position
         directions = []
@@ -85,14 +83,17 @@ class MicromouseMapper:
 
     def elegir_direccion(self, orientation):
         node = self.graph.nodes[self.current_position]
-        if node['hijo_frente']:
-            return 'recto'
-        elif node['hijo_dcha']:
-            return 'derecha'
-        elif node['hijo_izq']:
-            return 'izquierda'
-        else:
-            return 'backtrack'
+        opciones = ['frente', 'dcha', 'izq']
+
+        for opcion in opciones:
+            if node.get(f'hijo_{opcion}', False):
+                destino = self.get_new_pos(self.current_position, 
+                                        'recto' if opcion == 'frente' else 'derecha' if opcion == 'dcha' else 'izquierda',
+                                        orientation)
+                if destino not in self.graph.nodes or not self.graph.nodes[destino].get('explorado', False):
+                    return 'recto' if opcion == 'frente' else 'derecha' if opcion == 'dcha' else 'izquierda'
+
+        return 'backtrack'
 
     def avanzar(self, direccion, orientation):
         if direccion == 'backtrack':
@@ -100,7 +101,8 @@ class MicromouseMapper:
             if destino:
                 print(f"🧭 Retroceder a nodo sin explorar: {destino}")
                 self.current_position = destino
-                self.current_distance += self.d
+                # Recuperar la distancia ya registrada del nodo destino
+                self.current_distance = self.graph.nodes[destino]['distancia']
             else:
                 print("✅ Exploración completa.")
                 exit()
@@ -108,8 +110,13 @@ class MicromouseMapper:
             nueva_pos = self.get_new_pos(self.current_position, direccion, orientation)
             self.graph.nodes[self.current_position][f"hijo_{direccion}"] = False  # Marcar como visitado
             self.current_position = nueva_pos
-            self.current_distance += self.d
             self.stack.append(nueva_pos)
+
+            # Calcular la distancia desde el nodo anterior
+            distancia_padre = self.graph.nodes[self.stack[-2]]['distancia']
+            self.graph.nodes[nueva_pos]['distancia'] = distancia_padre + self.d
+            self.current_distance = self.graph.nodes[nueva_pos]['distancia']
+
 
     def buscar_nodo_no_explorado(self):
         for node in reversed(self.stack):
@@ -155,6 +162,20 @@ class MicromouseMapper:
                 for node, data in self.graph.nodes(data=True)}
         nx.draw_networkx_labels(self.graph, pos, labels, font_size=8, verticalalignment='bottom', ax=self.ax)
 
+        # 🔶 Dibujar el nodo actual en dorado
+        nx.draw_networkx_nodes(self.graph, pos,
+            nodelist=[self.current_position],
+            node_color="gold", node_size=900, ax=self.ax
+        )
+
+        # 🏷 Etiquetas con la distancia
+        labels = {
+            node: f"D:{data['distancia']}" if data.get('explorado', False) else "?" 
+            for node, data in self.graph.nodes(data=True)
+        }
+        nx.draw_networkx_labels(self.graph, pos, labels, font_size=8, verticalalignment='bottom', ax=self.ax)
+
+
         self.ax.set_title("Mapa del Laberinto (Explorado y No Explorado)")
         self.ax.grid(True)
         self.fig.canvas.draw()
@@ -171,7 +192,7 @@ k = 5
 mapper = MicromouseMapper(d, k)
 
 while True:
-    print(f"\n📍 Posición actual: {mapper.current_position} - Distancia: {mapper.current_distance}")
+    print(f"\n📍 Posición actual: {mapper.current_position} - Distancia desde el inicio: {mapper.graph.nodes[mapper.current_position]['distancia']}")
     try:
         ur_front = float(input("Distancia sensor frontal: "))
         ur_right = float(input("Distancia sensor derecho: "))
