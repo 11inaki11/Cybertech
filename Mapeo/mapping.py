@@ -410,7 +410,3 @@ while True:
     except KeyboardInterrupt:
         print("\n⏹ Exploración interrumpida por el usuario.")
         break
-
-# Al final puedes usar:
-# mapper.mostrar_grafo()
-# mapper.dibujar_grafo()
