@@ -1,0 +1,26 @@
+Added Component: Designator=U?(MODULE_ROB-14450)
+Add component (AddParameter): Name = "Availability"; Value = "In Stock"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Check_prices"; Value = "https://www.snapeda.com/parts/ROB-14450/SparkFun%20Electronics/view-part/2656367/?ref=eda"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MF"; Value = "SparkFun Electronics"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "MP"; Value = "ROB-14450"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Package"; Value = "None"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Price"; Value = "None"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "SnapEDA_Link"; Value = "https://www.snapeda.com/parts/ROB-14450/SparkFun%20Electronics/view-part/2656367/?ref=snap"; VariantName = "[No Variations]"
+Add component (AddParameter): Name = "Value"; Value = ""; VariantName = "[No Variations]"
+Added Pin To Net: NetName=VCC Pin=U?-1
+Added Pin To Net: NetName=+5 Pin=U?-2
+Added Pin To Net: NetName=GND Pin=U?-3
+Added Pin To Net: NetName=NetJ3_1 Pin=U?-4
+Added Pin To Net: NetName=NetJ3_2 Pin=U?-5
+Added Pin To Net: NetName=NetJ2_2 Pin=U?-6
+Added Pin To Net: NetName=NetJ2_1 Pin=U?-7
+Added Pin To Net: NetName=GND Pin=U?-8
+Added Pin To Net: NetName=GND Pin=U?-9
+Added Pin To Net: NetName=NetU1_13 Pin=U?-10
+Added Pin To Net: NetName=NetU1_10 Pin=U?-11
+Added Pin To Net: NetName=NetU1_9 Pin=U?-12
+Added Pin To Net: NetName=NetU1_11 Pin=U?-13
+Added Pin To Net: NetName=NetU1_7 Pin=U?-14
+Added Pin To Net: NetName=NetU1_8 Pin=U?-15
+Added Pin To Net: NetName=NetU1_12 Pin=U?-16
+Added Member To Class: ClassName=Sheet1 Member=Component U? ROB-14450
