@@ -2,24 +2,45 @@ import networkx as nx
 import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
+import math
 
 plt.ion()  # 🔄 Modo interactivo activado
 
 class MicromouseMapper:
-    def __init__(self, d, k):
+    def __init__(self, d, k, num_casillas_total):
         self.graph = nx.DiGraph()
-        self.d = d
-        self.k = k
-        self.current_position = (0, 0) 
+        self.d = d # Tamaño de cada casilla
+        self.k = k # Distancia mínima para considerar que hay una pared
+        self.current_position = (self.d / 2, self.d / 2)
         self.current_distance = 0
         self.visited = set()
-        self.stack = [(0, 0)]  # Para backtracking
+        self.stack = [self.current_position]  
+        self.num_casillas_total = num_casillas_total
+        self.lado = int(num_casillas_total ** 0.5)  # Suponemos mapa cuadrado
+        self.centro = (
+        (self.lado // 2) * self.d - self.d / 2,
+        (self.lado // 2) * self.d - self.d / 2
+        )
+        self.walls = []
+        # Coordenadas de las 4 casillas centrales (centros)
+        offset = self.d / 2
+        x1 = (self.lado // 2 - 1) * self.d + offset
+        x2 = (self.lado // 2) * self.d + offset
+        y1 = (self.lado // 2 - 1) * self.d + offset
+        y2 = (self.lado // 2) * self.d + offset
+        self.celdas_centro = [(x1, y1), (x1, y2), (x2, y1), (x2, y2)]
+
 
 
         # 🔲 Inicializar figura de matplotlib
         self.fig, self.ax = plt.subplots(figsize=(10, 8))
 
         self.graph.add_node(self.current_position, distancia=self.current_distance, hijo_dcha=False, hijo_frente=False, hijo_izq=False, explorado=True)
+
+        # 🧱 Añadir pared por debajo del nodo inicial (sur)
+        pared_inicial = self.calcular_borde_pared(self.current_position, 'recto', 'S')
+        self.walls.append(pared_inicial)
+
 
     def update_map(self, ur_front, ur_right, ur_left, orientation):
         position = self.current_position
@@ -32,6 +53,18 @@ class MicromouseMapper:
         can_go_right = ur_right > self.k
         can_go_left = ur_left > self.k
 
+        # Almacenar paredes detectadas
+        if not can_go_front:
+            wall = self.calcular_borde_pared(self.current_position, 'recto', orientation)
+            self.walls.append(wall)
+        if not can_go_right:
+            wall = self.calcular_borde_pared(self.current_position, 'derecha', orientation)
+            self.walls.append(wall)
+
+        if not can_go_left:
+            wall = self.calcular_borde_pared(self.current_position, 'izquierda', orientation)
+            self.walls.append(wall)
+
         self.graph.nodes[position].update({
             'distancia': distance,
             'hijo_dcha': can_go_right,
@@ -42,6 +75,38 @@ class MicromouseMapper:
 
         self.add_unexplored_nodes(position, can_go_front, can_go_right, can_go_left, orientation)
         self.visited.add(position)
+
+    def calcular_borde_pared(self, posicion, direccion, orientacion):
+        x, y = posicion
+        mitad = self.d / 2
+        if orientacion == 'N':
+            if direccion == 'recto':
+                return [(x - mitad, y + mitad), (x + mitad, y + mitad)]
+            elif direccion == 'derecha':
+                return [(x + mitad, y - mitad), (x + mitad, y + mitad)]
+            elif direccion == 'izquierda':
+                return [(x - mitad, y - mitad), (x - mitad, y + mitad)]
+        elif orientacion == 'S':
+            if direccion == 'recto':
+                return [(x + mitad, y - mitad), (x - mitad, y - mitad)]
+            elif direccion == 'derecha':
+                return [(x - mitad, y + mitad), (x - mitad, y - mitad)]
+            elif direccion == 'izquierda':
+                return [(x + mitad, y + mitad), (x + mitad, y - mitad)]
+        elif orientacion == 'E':
+            if direccion == 'recto':
+                return [(x + mitad, y + mitad), (x + mitad, y - mitad)]
+            elif direccion == 'derecha':
+                return [(x - mitad, y - mitad), (x + mitad, y - mitad)]
+            elif direccion == 'izquierda':
+                return [(x - mitad, y + mitad), (x + mitad, y + mitad)]
+        elif orientacion == 'O':
+            if direccion == 'recto':
+                return [(x - mitad, y - mitad), (x - mitad, y + mitad)]
+            elif direccion == 'derecha':
+                return [(x + mitad, y + mitad), (x + mitad, y - mitad)]
+            elif direccion == 'izquierda':
+                return [(x - mitad, y + mitad), (x - mitad, y - mitad)]
 
     def add_unexplored_nodes(self, position, can_go_front, can_go_right, can_go_left, orientation):
         x, y = position
@@ -81,19 +146,50 @@ class MicromouseMapper:
             if direction == 'derecha': return (x, y + self.d)
             if direction == 'izquierda': return (x, y - self.d)
 
+    def calcular_angulo_hacia_centro(self, origen):
+        dx = self.centro[0] - origen[0]
+        dy = self.centro[1] - origen[1]
+        angulo_rad = math.atan2(dx, dy)  # ⚠️ dx primero para que 0º sea norte
+        angulo_deg = (math.degrees(angulo_rad)) % 360
+        return angulo_deg
+
+
     def elegir_direccion(self, orientation):
         node = self.graph.nodes[self.current_position]
-        opciones = ['frente', 'dcha', 'izq']
+        posibles_direcciones = []
 
-        for opcion in opciones:
-            if node.get(f'hijo_{opcion}', False):
-                destino = self.get_new_pos(self.current_position, 
-                                        'recto' if opcion == 'frente' else 'derecha' if opcion == 'dcha' else 'izquierda',
-                                        orientation)
+        for nombre, clave in [('frente', 'recto'), ('dcha', 'derecha'), ('izq', 'izquierda')]:
+            if node.get(f'hijo_{nombre}', False):
+                destino = self.get_new_pos(self.current_position, clave, orientation)
                 if destino not in self.graph.nodes or not self.graph.nodes[destino].get('explorado', False):
-                    return 'recto' if opcion == 'frente' else 'derecha' if opcion == 'dcha' else 'izquierda'
+                    posibles_direcciones.append((clave, nombre, destino))
 
-        return 'backtrack'
+        if not posibles_direcciones:
+            return 'backtrack'
+
+        # 🧭 Ángulo hacia el centro desde la posición actual
+        angulo_objetivo = self.calcular_angulo_hacia_centro(self.current_position)
+
+        def angulo_direccion(destino):
+            dx = destino[0] - self.current_position[0]
+            dy = destino[1] - self.current_position[1]
+            ang = math.atan2(dx, dy)
+            return (math.degrees(ang)) % 360
+
+
+        # 🎯 Elegir la opción cuyo ángulo esté más cerca del objetivo
+        mejores_opciones = sorted(
+            posibles_direcciones,
+            key=lambda x: (self.distancia_angular(angulo_direccion(x[2]), angulo_objetivo),  # distancia angular al centro
+                        ['frente', 'dcha', 'izq'].index(x[1]))  # desempate por prioridad
+        )
+
+        return mejores_opciones[0][0]
+
+    def distancia_angular(self, a, b):
+        diff = abs(a - b) % 360
+        return min(diff, 360 - diff)
+
 
     def avanzar(self, direccion, orientation):
         if direccion == 'backtrack':
@@ -116,6 +212,68 @@ class MicromouseMapper:
             distancia_padre = self.graph.nodes[self.stack[-2]]['distancia']
             self.graph.nodes[nueva_pos]['distancia'] = distancia_padre + self.d
             self.current_distance = self.graph.nodes[nueva_pos]['distancia']
+        
+        # Verificar si hemos llegado a una de las casillas centrales
+        if self.current_position in self.celdas_centro:
+            print("🎯 ¡Centro del laberinto alcanzado!")
+            camino = self.stack.copy()
+            movimientos, giros = self.obtener_camino_y_giros(camino)
+            print("\n📌 Secuencia de coordenadas:")
+            for p in camino:
+                print(p)
+            print("\n🔁 Secuencia de movimientos:")
+            print(movimientos)
+            print("\n🔄 Secuencia de giros:")
+            print(giros)
+            exit()
+
+    def obtener_camino_y_giros(self, camino):
+        movimientos = []
+        giros = []
+        orientacion_actual = 'N'
+
+        for i in range(1, len(camino)):
+            x1, y1 = camino[i-1]
+            x2, y2 = camino[i]
+
+            dx = x2 - x1
+            dy = y2 - y1
+
+            # Detectar dirección del movimiento
+            if dx == self.d:
+                direccion = 'E'
+            elif dx == -self.d:
+                direccion = 'O'
+            elif dy == self.d:
+                direccion = 'N'
+            elif dy == -self.d:
+                direccion = 'S'
+            else:
+                direccion = '?'
+
+            movimientos.append((x2, y2))
+
+            # Calcular giro necesario
+            giro = self.calcular_giro(orientacion_actual, direccion)
+            giros.append(giro)
+            orientacion_actual = direccion
+
+        return movimientos, giros
+    
+    def calcular_giro(self, desde, hacia):
+        orden = ['N', 'E', 'S', 'O']
+        i_desde = orden.index(desde)
+        i_hacia = orden.index(hacia)
+        diff = (i_hacia - i_desde) % 4
+        if diff == 0:
+            return 'seguir recto'
+        elif diff == 1:
+            return 'girar derecha'
+        elif diff == 2:
+            return 'giro en U'
+        elif diff == 3:
+            return 'girar izquierda'
+
 
 
     def buscar_nodo_no_explorado(self):
@@ -152,6 +310,13 @@ class MicromouseMapper:
         explored_nodes = [node for node, data in self.graph.nodes(data=True) if data.get('explorado', False)]
         unexplored_nodes = [node for node, data in self.graph.nodes(data=True) if not data.get('explorado', False)]
 
+        # Dibujar fondo de cuadrícula
+        for x in range(0, self.lado * self.d + 1, self.d):
+            self.ax.axvline(x=x, color='lightgray', linestyle='--', linewidth=0.5)
+        for y in range(0, self.lado * self.d + 1, self.d):
+            self.ax.axhline(y=y, color='lightgray', linestyle='--', linewidth=0.5)
+
+
         nx.draw(self.graph, pos, with_labels=True, node_size=800, edge_color="gray",
                 font_size=8, font_weight="bold", arrows=True, ax=self.ax)
         nx.draw_networkx_nodes(self.graph, pos, nodelist=explored_nodes,
@@ -177,9 +342,40 @@ class MicromouseMapper:
 
 
         self.ax.set_title("Mapa del Laberinto (Explorado y No Explorado)")
+        self.ax.set_xlim(-self.d, self.lado * self.d)
+        self.ax.set_ylim(-self.d, self.lado * self.d)
+        self.ax.set_aspect('equal')
+
         self.ax.grid(True)
         self.fig.canvas.draw()
+        # Dibujar paredes como líneas negras
+        for p1, p2 in self.walls:
+            self.ax.plot([p1[0], p2[0]], [p1[1], p2[1]], color='black', linewidth=2)
+
+
         self.fig.canvas.flush_events()
+        # Dibujar el centro del laberinto como punto verde
+        self.ax.plot(self.centro[0], self.centro[1], 'go', markersize=12)
+        # Flecha al centro
+        self.ax.arrow(
+            self.current_position[0], self.current_position[1],
+            self.centro[0] - self.current_position[0],
+            self.centro[1] - self.current_position[1],
+            head_width=1, head_length=1, fc='green', ec='green', linewidth=1.5, alpha=0.6
+        )
+
+
+
+def grados_a_orientacion(grados):
+    grados = grados % 360  # Asegura que esté en [0, 360)
+    if grados < 45 or grados >= 315:
+        return 'N'
+    elif 45 <= grados < 135:
+        return 'E'
+    elif 135 <= grados < 225:
+        return 'S'
+    elif 225 <= grados < 315:
+        return 'O'
 
 
 
@@ -187,9 +383,10 @@ class MicromouseMapper:
 # 🧪 Interacción
 # ================
 
-d = 10
-k = 5
-mapper = MicromouseMapper(d, k)
+d = 18
+k = 9
+num_casillas_total = 64  # por ejemplo, un laberinto de 16x16
+mapper = MicromouseMapper(d, k, num_casillas_total)
 
 while True:
     print(f"\n📍 Posición actual: {mapper.current_position} - Distancia desde el inicio: {mapper.graph.nodes[mapper.current_position]['distancia']}")
@@ -197,7 +394,10 @@ while True:
         ur_front = float(input("Distancia sensor frontal: "))
         ur_right = float(input("Distancia sensor derecho: "))
         ur_left = float(input("Distancia sensor izquierdo: "))
-        orientation = input("Orientación actual (N/S/E/O): ").strip().upper()
+        angulo = float(input("Ángulo de orientación (grados): "))
+        orientation = grados_a_orientacion(angulo)
+        print(f"📐 Orientación aproximada: {orientation}")
+
 
         mapper.update_map(ur_front, ur_right, ur_left, orientation)
         direction = mapper.elegir_direccion(orientation)
@@ -210,7 +410,3 @@ while True:
     except KeyboardInterrupt:
         print("\n⏹ Exploración interrumpida por el usuario.")
         break
-
-# Al final puedes usar:
-# mapper.mostrar_grafo()
-# mapper.dibujar_grafo()
