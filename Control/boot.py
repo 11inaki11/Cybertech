@@ -1,5 +1,5 @@
 from machine import Pin, PWM
-import time
+import machine
 import utime
 
 
@@ -57,20 +57,21 @@ encoderD = Pin(ENC_D, Pin.IN, Pin.PULL_UP)
 # Variables para el encoder
 contadorI = 0
 contadorD = 0
+prevcontadorI = 0
+prevcontadorD = 0
 rpmI = 0
 rpmD = 0
 last_time = utime.ticks_ms()
-periodoMuestreo = 10  # ms
 
 # Interrupciones de los encoders
 
 
-def callback_encoderI():
+def callback_encoderI(pin):
     global contadorI
     contadorI += 1
 
 
-def callback_encoderD():
+def callback_encoderD(pin):
     global contadorD
     contadorD += 1
 
@@ -79,23 +80,14 @@ def callback_encoderD():
 encoderI.irq(trigger=Pin.IRQ_RISING, handler=callback_encoderI)
 encoderD.irq(trigger=Pin.IRQ_RISING, handler=callback_encoderD)
 
-motorD.movef(500)
-motorI.movef(500)
-i = 0
-# Ejemplo de control de velocidad
-while i < 1000:
-    i += 1
-    if utime.ticks_diff(utime.ticks_ms(), last_time) >= periodoMuestreo:
-        last_time = utime.ticks_ms()
-        # Calcular velocidad
-        machine.disable_irq()  # Deshabilitar interrupciones SECCION CRITICA
-        rpmI = ((contadorI-prevcontadorI) * 60000) / (960 * periodoMuestreo)
-        rpmD = ((contadorD-prevcontadorD) * 60000) / (960 * periodoMuestreo)
-        prevcontadorI = contadorI
-        prevcontadorD = contadorD
-        machine.enable_irq()    # Habilitar interrupciones SECCION CRITICA
-        print("RPM izquierdo: ", rpmI)
-        print("RPM derecho: ", rpmD)
+motorI.movef(300)
+flag = 0
+flag2 = 2
+while flag != 30000:
+    current_time = utime.ticks_ms()
+    flag += 1
+    if (current_time - last_time) > 400:
+        flag2 = 1
 
-motorD.full_stop()
+print("el valor de flag es", flag2)
 motorI.full_stop()
