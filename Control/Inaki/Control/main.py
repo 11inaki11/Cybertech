@@ -95,12 +95,12 @@ while True:
         last_time = now
 
         # Sección crítica mínima
-        machine.disable_irq()
+        irq_return = machine.disable_irq()
         delta_i = pulsos_i - prev_pulsos_i
         delta_d = pulsos_d - prev_pulsos_d
         prev_pulsos_i = pulsos_i
         prev_pulsos_d = pulsos_d
-        machine.enable_irq()
+        machine.enable_irq(irq_return)
 
         # Cálculo de RPM
         motorI.rpm = (delta_i * 60 * 1000) / (PULSOS_POR_VUELTA * dt)

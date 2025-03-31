@@ -148,6 +148,7 @@ rpmD = 0
 sample_time_v = 10  # ms
 
 motorD.setpoint = 60  # RPM
+motorI.setpoint = 60  # RPM
 
 last_time_v = utime.ticks_ms()
 last_time_w = utime.ticks_ms()
@@ -171,6 +172,8 @@ def callback_encoderD(pin):
 encoderI.irq(trigger=Pin.IRQ_RISING, handler=callback_encoderI)
 encoderD.irq(trigger=Pin.IRQ_RISING, handler=callback_encoderD)
 
+time.sleep(1)  # Esperar un segundo para estabilizar el sistema
+
 while (1):
     if utime.ticks_diff(utime.ticks_ms(), last_time_v) > sample_time_v:
         disable_out = machine.disable_irq()  # se deshabilitan interrupciones
@@ -187,4 +190,5 @@ while (1):
         motorD.control()
         motorI.control()
 
-        last_time = utime.ticks_ms()
+    if utime.ticks_diff(utime.ticks_ms(), last_time_w)> 100:
+        print(motorI.rpm, motorD.rpm)
