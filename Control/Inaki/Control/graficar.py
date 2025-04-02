@@ -1,38 +1,41 @@
+
 import serial
 import matplotlib.pyplot as plt
+from collections import deque
 
-# Configurar puerto serie (cambia "COM3" o "/dev/ttyUSB0" según corresponda)
-ser = serial.Serial("COM4", 115200, timeout=1)
+# Configura el puerto serie (ajusta según tu sistema)
+ser = serial.Serial('/dev/tty.usbmodem101', 115200)
 
-# Variables para la gráfica
-rpm_values = []
-filtered_values = []  # Lista para almacenar la media de cada 5 valores
-window_size = 5  # Tamaño de la ventana para la media móvil
+# Buffers
+max_len = 200
+vel_d = deque([0]*max_len, maxlen=max_len)
+vel_i = deque([0]*max_len, maxlen=max_len)
+target = deque([0]*max_len, maxlen=max_len)
 
-plt.ion()  # Modo interactivo
+# Gráfica en tiempo real
+plt.ion()
+fig, ax = plt.subplots()
+line_d, = ax.plot(vel_d, label='Vel. Derecha')
+line_i, = ax.plot(vel_i, label='Vel. Izquierda')
+line_t, = ax.plot(target, label='Objetivo', linestyle='--')
+ax.legend()
+ax.set_ylim(0, 50)
+ax.set_xlabel('Tiempo (muestras)')
+ax.set_ylabel('Velocidad (pulsos/50ms)')
 
 while True:
     try:
-        data = ser.readline().decode().strip()  # Leer datos del ESP32
-        if data:
-            rpm = float(data)
-            rpm_values.append(rpm)
+        line = ser.readline().decode().strip()
+        parts = line.split(',')
+        if len(parts) == 3:
+            vd, vi, tgt = map(int, parts)
+            vel_d.append(vd)
+            vel_i.append(vi)
+            target.append(tgt)
 
-            # Aplicar filtro de media móvil cada 5 valores
-            if len(rpm_values) >= window_size:
-                avg_rpm = sum(rpm_values[-window_size:]) / window_size  # Calcular media
-                filtered_values.append(avg_rpm)
-
-            # Mostrar en la gráfica
-            plt.clf()
-            plt.plot(filtered_values, label="RPM (Media de 5)")
-            plt.xlabel("Tiempo")
-            plt.ylabel("Velocidad (RPM)")
-            plt.legend()
-            plt.pause(0.1)  # Pequeño delay para actualizar
-    except KeyboardInterrupt:
-        break
-
-ser.close()
-plt.ioff()
-plt.show()
+            line_d.set_ydata(vel_d)
+            line_i.set_ydata(vel_i)
+            line_t.set_ydata(target)
+            plt.pause(0.001)
+    except Exception as e:
+        print("Error:", e)
