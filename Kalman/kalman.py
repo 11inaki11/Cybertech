@@ -2,22 +2,23 @@ import numpy as np
 
 class KalmanFilterRobot:
     def __init__(self, wheel_radius, wheel_distance, encoder_res, sensor_offsets):
-        self.R = wheel_radius  # Radio de las ruedas [cm]
+        self.R = 3.35  # Radio de las ruedas [cm]
         self.L = wheel_distance  # Distancia entre ruedas [cm]
-        self.encoder_res = encoder_res  # Pulsos por vuelta
+        self.encoder_res = 960  # Pulsos por vuelta
         self.sensor_offsets = sensor_offsets  # Distancias de sensores al centro [cm]
         
         # Estado inicial [x, y, theta]
-        self.x = np.array([[0.0], [0.0], [0.0]])
-        
+        self.x = np.array([[0.0], [0.0], [0.0]])   # Estado estimado
+        self.x_k = np.array([[0.0], [0.0], [0.0]]) # Estado predecido
+
         # Covarianza inicial
-        self.P = np.eye(3) * 0.1
+        self.P = np.eye(3) * 0.1  # Covarianza inicial
         
         # Matriz de ruido del proceso
-        self.Q = np.eye(3) * 0.01
+        self.Q = np.eye(3) * 0.01   #DEFINIR SEGÚN CALIBRACIONES ENCODERS
         
         # Matriz de ruido de la medición (ajustar según sensores)
-        self.Rm = np.eye(3) * 0.5
+        self.Rm = np.eye(3) * 0.5   #DEFINIR SEGÚN CALIBRACIONES IR
     
     def predict(self, pulses_l, pulses_r):
         """ Predicción del estado basada en los encoders """
@@ -33,10 +34,12 @@ class KalmanFilterRobot:
         x_new = self.x[0, 0] + d_center * np.cos(theta_new)
         y_new = self.x[1, 0] + d_center * np.sin(theta_new)
         
-        self.x = np.array([[x_new], [y_new], [theta_new]])
+        self.x_k = np.array([[x_new], [y_new], [theta_new]])
         
         # Jacobiano de la función de transición
-        F = np.eye(3)
+        F = np.array([[1, 0, -d_center * np.sin(self.x_k[2, 0])],
+                      [0, 1, d_center * np.cos(self.x_k[2, 0])],
+                      [0, 0, 1]])
         
         # Actualizar covarianza
         self.P = F @ self.P @ F.T + self.Q
@@ -47,13 +50,13 @@ class KalmanFilterRobot:
         z = np.array(sensor_readings).reshape(3, 1)
         
         # Medición esperada
-        h_x = np.array(expected_distances).reshape(3, 1)
+        h_x = np.array(expected_distances).reshape(3, 1) #PROBLEMAS
         
         # Innovación
         y = z - h_x
         
         # Matriz de observación
-        H = np.eye(3)
+        H = np.eye(3) #AQUI HAY PROBLEMAS
         
         # Covarianza de la innovación
         S = H @ self.P @ H.T + self.Rm
