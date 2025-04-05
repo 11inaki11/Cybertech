@@ -6,6 +6,8 @@ import math
 # Constantes
 FORWARD = 1
 BACKWARD = 0
+CLOCKWISE = 1
+COUNTERCLOCKWISE = 0
 
 # Pines (los mismos que usabas)
 PWM_PIN_D = 21
@@ -28,15 +30,11 @@ Kd = 0.05
 switch = Pin(PIN_SW, Pin.IN, Pin.PULL_UP)
 
 # Configuración PWM
-
-
 def init_pwm(pin):
     pwm = PWM(Pin(pin), freq=1000, duty=0)
     return pwm
 
 # Clase Motor con control PID
-
-
 class MotorPID:
     def __init__(self, pwm_pin, in1, in2, stby):
         self.pwm = init_pwm(pwm_pin)
@@ -101,17 +99,13 @@ pulsos_i = 0
 pulsos_d = 0
 
 # Interrupciones simples
-
-
 def encoderI_cb(pin):
     global pulsos_i
     pulsos_i += 1
 
-
 def encoderD_cb(pin):
     global pulsos_d
     pulsos_d += 1
-
 
 encoderI.irq(trigger=Pin.IRQ_RISING, handler=encoderI_cb)
 encoderD.irq(trigger=Pin.IRQ_RISING, handler=encoderD_cb)
@@ -132,6 +126,7 @@ if switch.value() == 0 and motorD.stby.value() == 1:
 
 if switch.value() == 1 and motorD.stby.value() == 0:
     motorD.start()
+
 
 while True:
     if switch.value() == 1:

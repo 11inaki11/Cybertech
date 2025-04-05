@@ -2,7 +2,6 @@ from machine import Pin, PWM
 import utime
 import machine
 
-
 class Motor:
     '''Clase para controlar un motor con un driver L298N'''
 
@@ -74,7 +73,6 @@ class Motor:
             self.movef(self.duty_cycle)
         else:
             self.moveb(self.duty_cycle)
-
 
 # Configuración de pines para el driver TB6612FNG
 PWM_PIN_D = 21  # Pin PWM para velocidad (AIN1 o BIN1)
