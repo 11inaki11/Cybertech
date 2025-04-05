@@ -115,12 +115,6 @@ def encoder_isr(pin):
 encoderI.irq(trigger=Pin.IRQ_RISING, handler=encoder_isr)
 encoderD.irq(trigger=Pin.IRQ_RISING, handler=encoder_isr)
 
-def calculate_rpm(pulse_diff, time_ms):
-    """Cálculo preciso de RPM con protección div/0"""
-    if time_ms == 0:
-        return 0
-    return (pulse_diff * 60000) / (PULSES_PER_REV * time_ms)
-
 def sync_motors(rpm_left, rpm_right):
     """Sistema avanzado de sincronización"""
     error = rpm_left - rpm_right
@@ -145,6 +139,7 @@ while True:
     current_time = utime.ticks_ms()
     elapsed = utime.ticks_diff(current_time, last_time)
     
+    # CONTROL MOTORES
     if elapsed >= SAMPLE_TIME_MS:
         # Sección crítica para lectura de encoders
         irq_state = machine.disable_irq()

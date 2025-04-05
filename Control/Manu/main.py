@@ -67,53 +67,13 @@ class Motor:
         error = self.rpm_filtrada / self.setpoint
         self.duty_cycle = regulador(error, self.duty_cycle)
 
+    def move(self, direction = 1):
+        '''Mover el motor en la dirección especificada'''
         # Aplicar al motor
-        self.movef(self.duty_cycle)
-
-
-def regulador(error, duty):
-    '''Regulador proporcional'''
-    if duty == 0:
-        duty = 200
-
-    if 0 <= error < 0.3:
-        duty = min(duty * 2, 1023)
-    elif 0.3 <= error < 0.5:
-        duty = min(duty * 1.5, 1023)
-    elif 0.5 <= error < 0.6:
-        duty = min(duty * 1.3, 1023)
-    elif 0.6 <= error < 0.7:
-        duty = min(duty * 1.1, 1023)
-    elif 0.7 <= error < 0.75:
-        duty = min(duty * 1.05, 1023)
-    elif 0.75 <= error < 0.8:
-        duty = min(duty * 1.03, 1023)
-    elif 0.8 <= error < 0.85:
-        duty = min(duty * 1.01, 1023)
-    elif 0.85 <= error < 0.9:
-        duty = min(duty * 1.005, 1023)
-    elif 0.9 <= error < 0.94:
-        duty = min(duty * 1.001, 1023)
-    elif 0.94 <= error < 0.95:
-        duty = min(duty * 1.0005, 1023)
-    elif 1.05 <= error < 1.1:
-        duty /= 1.005
-    elif 1.1 <= error < 1.15:
-        duty /= 1.01
-    elif 1.15 <= error < 1.2:
-        duty /= 1.03
-    elif 1.2 <= error < 1.25:
-        duty /= 1.05
-    elif 1.25 <= error < 1.5:
-        duty /= 1.1
-    elif 1.5 <= error < 2:
-        duty /= 1.2
-    elif 2 <= error < 3:
-        duty /= 1.5
-    elif error > 3:
-        duty /= 2
-
-    return max(0, min(int(duty), 1023))
+        if direction == 1:
+            self.movef(self.duty_cycle)
+        else:
+            self.moveb(self.duty_cycle)
 
 
 # Configuración de pines para el driver TB6612FNG
@@ -147,20 +107,14 @@ rpmD = 0
 # Variables para el control PID
 sample_time_v = 10  # ms
 
-motorD.setpoint = 60  # RPM
-motorI.setpoint = 60  # RPM
-
 last_time_v = utime.ticks_ms()
 last_time_w = utime.ticks_ms()
 
 # Interrupciones de los encoders
-
-
 def callback_encoderI(pin):
     '''Callback para el encoder izquierdo'''
     global contador_i
     contador_i += 1
-
 
 def callback_encoderD(pin):
     '''Callback para el encoder derecho'''
@@ -178,17 +132,23 @@ while (1):
     if utime.ticks_diff(utime.ticks_ms(), last_time_v) > sample_time_v:
         disable_out = machine.disable_irq()  # se deshabilitan interrupciones
         # -- sección crítica --
-        motorI.rpm = ((contador_i - prev_contador_i)*60 * 1000) / \
-            (960 * sample_time_v)
-        motorD.rpm = ((contador_d - prev_contador_d)*60 * 1000) / \
-            (960 * sample_time_v)
+        delta_i = contador_i - prev_contador_i
+        delta_d = contador_d - prev_contador_d
         prev_contador_i = contador_i
         prev_contador_d = contador_d
         # -- sección crítica --
         machine.enable_irq(disable_out)  # vuelven a habilitarse interrupciones
+        motorI.rpm = (delta_i*60 * 1000) / (960 * sample_time_v)
+        motorD.rpm = (delta_d*60 * 1000) / (960 * sample_time_v)
         last_time_v = utime.ticks_ms()
         motorD.control()
         motorI.control()
+
+        error_sync = motorD.rpm - motorI.rpm
+        if abs(error_sync) > 1:
+            # Ajuste fino al setpoint
+            motorI.setpoint += 0.2 * error_sync
+            motorD.setpoint -= 0.2 * error_sync
 
     if utime.ticks_diff(utime.ticks_ms(), last_time_w)> 100:
         print(motorI.rpm, motorD.rpm)

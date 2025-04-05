@@ -44,11 +44,13 @@ class KalmanFilterRobot:
         # Actualizar covarianza
         self.P = F @ self.P @ F.T + self.Q
     
-    def update(self, sensor_readings, expected_distances):
+    def update(self, sensor_readings):
         """ Actualización basada en los sensores """
         # Medición observada
         z = np.array(sensor_readings).reshape(3, 1)
         
+        # Intentar estimar en qué casilla está la siguiente pared
+
         # Medición esperada
         h_x = np.array(expected_distances).reshape(3, 1) #PROBLEMAS
         
