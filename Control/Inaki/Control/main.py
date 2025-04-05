@@ -9,11 +9,11 @@ BACKWARD = 0
 
 # Pines (los mismos que usabas)
 PWM_PIN_D = 21
-IN1_D = 9
-IN2_D = 10
+IN1_D = 10
+IN2_D = 9
 PWM_PIN_I = 18
-IN1_I = 7
-IN2_I = 8
+IN1_I = 8
+IN2_I = 7
 STBY = 17
 ENC_I = 6
 ENC_D = 5
@@ -127,19 +127,19 @@ prev_pulsos_d = 0
 last_time = utime.ticks_ms()
 
 if switch.value() == 0 and motorD.stby.value() == 1:
-  motorD.full_stop()
-  motorI.full_stop()
-  
+    motorD.full_stop()
+    motorI.full_stop()
+
 if switch.value() == 1 and motorD.stby.value() == 0:
-  motorD.start()
-  
+    motorD.start()
+
 while True:
     if switch.value() == 1:
         now = utime.ticks_ms()
         if utime.ticks_diff(now, last_time) >= sample_time:
             dt = utime.ticks_diff(now, last_time)
             last_time = now
-    
+
             # Sección crítica mínima
             irq_return = machine.disable_irq()
             delta_i = pulsos_i - prev_pulsos_i
@@ -147,17 +147,17 @@ while True:
             prev_pulsos_i = pulsos_i
             prev_pulsos_d = pulsos_d
             machine.enable_irq(irq_return)
-    
+
             # Cálculo de RPM
             motorI.rpm = (delta_i * 60 * 1000) / (PULSOS_POR_VUELTA * dt)
             motorD.rpm = (delta_d * 60 * 1000) / (PULSOS_POR_VUELTA * dt)
-    
+
             # Control PID
             motorI.update_pid(dt)
             motorD.update_pid(dt)
-    
+
             # Sincronización: igualar velocidades si hay diferencias pequeñas
-    
+
             error_sync = motorD.rpm - motorI.rpm
             """
             if abs(error_sync) > 1:
@@ -165,18 +165,18 @@ while True:
                 motorI.setpoint += math.copysign(5, error_sync)
                 motorD.setpoint -= math.copysign(5, error_sync)
             """
-    
+
             # Actualizar el PWM
             motorI.move(FORWARD)
             motorD.move(FORWARD)
-          
+
             """
             if sensorIR[2] < sensorIR[1]:
                 motorI.setpoint += 5
             elif sensorIR[2] > sensorIR[1]:
                 motorD.setpoint -= 5
             """
-          
+
     else:
-            motorI.full_stop()
-            motorD.full_stop()
+        motorI.full_stop()
+        motorD.full_stop()
