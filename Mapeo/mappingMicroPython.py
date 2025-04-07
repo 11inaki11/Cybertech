@@ -119,15 +119,29 @@ class MicromouseMapper:
 
         return mejores_opciones[0][0]
 
+    def calcular_camino_entre(self, inicio, fin):
+        i1 = self.stack.index(inicio)
+        i2 = self.stack.index(fin)
+        if i1 < i2:
+            return self.stack[i1:i2+1]
+        else:
+            return list(reversed(self.stack[i2:i1+1]))
+
+    def opuesta_a(self, orientacion):
+        mapa = {'N': 'S', 'S': 'N', 'E': 'O', 'O': 'E'}
+        return mapa.get(orientacion, 'N')
+
     def avanzar(self, direccion, orientation):
         if direccion == 'backtrack':
             destino = self.buscar_nodo_no_explorado()
             if destino:
+                print(f"🔙 Backtracking hacia: {destino}")
+                camino = self.calcular_camino_entre(self.current_position, destino)
+                self.mostrar_giros_para_camino(camino, 'N')
                 self.current_position = destino
                 self.current_distance = self.graph[destino]['distancia']
-            else:
-                print("✅ Exploración completa.")
-                return True
+                return False
+
         else:
             nueva_pos = self.get_new_pos(self.current_position, direccion, orientation)
             self.graph[self.current_position][f"hijo_{direccion}"] = False
@@ -143,6 +157,26 @@ class MicromouseMapper:
             return True
 
         return False
+
+    def mostrar_giros_para_camino(self, camino, orientacion_inicial):
+        print("- derecha")
+        print("- derecha")
+        orientacion_actual = self.opuesta_a(orientacion_inicial)
+
+        for i in range(1, len(camino)):
+            actual = camino[i - 1]
+            siguiente = camino[i]
+            dx = siguiente[0] - actual[0]
+            dy = siguiente[1] - actual[1]
+            if dx == self.d: orientacion_obj = 'E'
+            elif dx == -self.d: orientacion_obj = 'O'
+            elif dy == self.d: orientacion_obj = 'N'
+            elif dy == -self.d: orientacion_obj = 'S'
+            else: continue
+            giro = self.calcular_giro(orientacion_actual, orientacion_obj)
+            print(f"- {giro}")
+            print("- avanza")
+            orientacion_actual = orientacion_obj
 
     def obtener_camino_y_giros(self, camino):
         movimientos = []
@@ -185,6 +219,7 @@ class MicromouseMapper:
                         if self.graph.get(hijo) and not self.graph[hijo].get('explorado'):
                             return node
         return None
+
 
 def grados_a_orientacion(grados):
     grados = grados % 360  # Asegura que esté en [0, 360)
