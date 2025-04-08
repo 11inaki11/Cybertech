@@ -195,7 +195,7 @@ def control_orientacion(pos_actual, pos_objetivo, motorI, motorD, vel_base):
     Kp = 0.5
     # Calcular el error de orientación
     orientacion_deseada = math.atan2(pos_objetivo[1] - pos_actual[1], pos_objetivo[0] - pos_actual[0])*180 / math.pi
-    error_orientacion = float(orientacion_deseada) - float(pos_actual)
+    error_orientacion = float(orientacion_deseada) - float(pos_actual[2])
     # Normalizar el error de orientación
     if error_orientacion > 180:
         error_orientacion -= 360
@@ -220,7 +220,7 @@ def control_orientacion(pos_actual, pos_objetivo, motorI, motorD, vel_base):
 def avance(velocidad, motorD, motorI, pos_actual, pos_objetivo):
     motorD.start()
     duty = velocidad * 1023 / 100
-    control_orientacion(pos_actual, pos_objetivo, motorI, motorD, duty)
+    control_orientacion(pos_actual[2], pos_objetivo, motorI, motorD, duty)
 
 
 # ------------------- CONFIGURACIÃN DEL MPU6050 -------------------
@@ -325,7 +325,7 @@ while True:
 
         # Actualizar posición
         x, y = actualizar_posicion(x, y, theta, delta_dist)
-        avance(30, motorD, motorI, (x,y), (0,100))
+        avance(30, motorD, motorI, (x,y,theta), (0,100))
 
 
     if y>100:
