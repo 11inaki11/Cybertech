@@ -111,7 +111,6 @@ def leer_distancia(ir):
 
 # ------------------- CLASE MOTORES -------------------
 
-
 class MotorPID:
     def __init__(self, pwm_pin, in1, in2, stby):
         self.pwm = init_pwm(pwm_pin)
@@ -222,8 +221,6 @@ def avance(velocidad, motorD, motorI, pos_actual, pos_objetivo):
     motorD.start()
     duty = velocidad * 1023 / 100
     control_orientacion(pos_actual, pos_objetivo, motorI, motorD, duty)
-    
-
 
 
 # ------------------- CONFIGURACIÃN DEL MPU6050 -------------------
@@ -264,23 +261,19 @@ print("â CalibraciÃ³n completada.")
 print("Offset calculado en eje X: {:.3f} Â°/s".format(gyro_x_offset))
 print("ð¢ Iniciando mediciÃ³n de orientaciÃ³n...\n")
 
-# ------------------- CÃLCULO DE ÃNGULO -------------------
-orientation_x = 0.0
+# ------------------- TIEMPOS -------------------
 last_time = ticks_ms()
 last_time_w = ticks_ms()
-sample_time = 5
-girando = 0  # Bandera para indicar si el robot ha girado mÃ¡s de 90Â°
-completo = 0  # Bandera para indicar si el giro ha sido completado
-completo1 = 0
-completo2 = 0
+sample_time = 20
+
 # ------------------- CÃLCULO DE POSICIÓN -------------------
 prev_pulsos_i = 0
 prev_pulsos_d = 0
+
 x = 0.0
 y = 0.0
-moviendo = 0 # Bandera para indicar si el robot se esta trasladando
-moviendo_anterior = 0 # Bandera para indicar si en la última iteración del bucle el robot se estaba trasladando.
-# Función para actualizar la posición
+theta = 0.0
+
 def actualizar_posicion(x, y, orientacion, delta_dist):
     # Convertir grados a radianes
     theta_rad = math.radians(orientacion)
@@ -293,20 +286,11 @@ def actualizar_posicion(x, y, orientacion, delta_dist):
     y += dy
 
     return x, y
-# ------------------- BUCLE PRINCIPAL -------------------
-moviendo = 1
-avance(30, motorD, motorI)
 
 while True:
     # Leer velocidad angular en eje X y compensar offset
     now = ticks_ms()
-    """
-    if switch.value() == 1 and girando == 0 and completo == 0:
-        # Iniciar giro en sentido horario a 50% de velocidad
-        giro(CLOCKWISE, 15, motorD, motorI)
-        girando = 1
-        print("Giro iniciado. OrientaciÃ³n X: {:.2f}Â°".format(orientation_x))
-    """
+
     # aqui se leen todos los sensores
     if ticks_diff(now, last_time) >= sample_time:
         gx = read_word(GYRO_XOUT_H)
@@ -318,76 +302,33 @@ while True:
         last_time = now
 
         # Integrar para obtener Ã¡ngulo acumulado
-        orientation_x -= gyro_x * dt
-
-        # Lectura de los sensores IR
-        # Leer sensores IR
-        dist_izq = leer_distancia(irI)
-        dist_cen = leer_distancia(irC)
-        dist_der = leer_distancia(irD)
-
+        theta -= gyro_x * dt
 
         # Normalizar a rango 0â360Â°
-        orientation_x = (orientation_x + 360) % 360
+        theta = (theta + 360) % 360
 
-        # Detectar cambio de estado de movimiento, de rotación a traslación.
-        if moviendo_anterior == 0 and moviendo == 1:
-            # Entrando en modo "moviendo" → resetear referencia de pulsos
-            prev_pulsos_i = pulsos_i
-            prev_pulsos_d = pulsos_d
+        #Si el robot está en fase de traslación actualizo sus coordenadas (x,y)   
+        # Guardar pulsos actuales y calcular delta
+        irq_state = machine.disable_irq()
+        delta_i = pulsos_i - prev_pulsos_i
+        delta_d = pulsos_d - prev_pulsos_d
+        prev_pulsos_i = pulsos_i
+        prev_pulsos_d = pulsos_d
+        machine.enable_irq(irq_state)
 
-        # Guardar estado actual como referencia para la próxima iteración. Si he empezado a moverme se pondrá esta bandera a 1. Solo se pondrá a 0 si el robot viene de una rotación
-        moviendo_anterior = moviendo
+        # Distancia por rueda (en cm)
+        dist_i = delta_i * DIST_POR_PULSO
+        dist_d = delta_d * DIST_POR_PULSO
 
-        #Si el robot está en fase de traslación actualizo sus coordenadas (x,y)
-        if moviendo:    
-            # Guardar pulsos actuales y calcular delta
-            irq_state = machine.disable_irq()
-            delta_i = pulsos_i - prev_pulsos_i
-            delta_d = pulsos_d - prev_pulsos_d
-            prev_pulsos_i = pulsos_i
-            prev_pulsos_d = pulsos_d
-            machine.enable_irq(irq_state)
+        # Distancia recorrida media del robot
+        delta_dist = (dist_i + dist_d) / 2
 
-            # Distancia por rueda (en cm)
-            dist_i = delta_i * DIST_POR_PULSO
-            dist_d = delta_d * DIST_POR_PULSO
-
-            # Distancia recorrida media del robot
-            delta_dist = (dist_i + dist_d) / 2
-
-            # Actualizar posición
-            x, y = actualizar_posicion(x, y, orientation_x, delta_dist)
+        # Actualizar posición
+        x, y = actualizar_posicion(x, y, theta, delta_dist)
+        avance(30, motorD, motorI, (x,y), (0,100))
 
 
-    if ticks_diff(now, last_time_w) >= 500:
-      print("Posición actual → x: {:.2f} cm, y: {:.2f} cm".format(x, y))
-      print("Ángulo actual: {:.2f}°".format(orientation_x))
-      last_time_w = now
-
-    """
-    if girando == 1 and orientation_x < 90 and ticks_diff(now, last_time_w) >= 100:
-        print("OrientaciÃ³n X: {:.2f}Â°".format(orientation_x))
-        last_time_w = now
-
-    if abs(0 - orientation_x) > 88 and abs(0 - orientation_x) < 350:
-        motorD.stop()
-        motorI.stop()
-        girando = 0
-        completo = 1
-        print("Giro completado. OrientaciÃ³n X: {:.2f}Â°".format(orientation_x))
-
-    elif switch.value() == 0 and completo:
-        motorD.full_stop()
-        motorI.full_stop()
-    """
     if y>100:
         motorD.stop()
-        motorI.stop()
-        moviendo = 0
-        print("Movimiento completado. OrientaciÃ³n X: {:.2f}Â°".format(orientation_x))
-        print("Ángulo actual: {:.2f}°".format(orientation_x))        
+        motorI.stop()     
         sleep_ms(3000)
-        moviendo = 1
-        avance(30, motorD, motorI)
-
