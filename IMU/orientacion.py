@@ -194,7 +194,7 @@ def control_orientacion(pos_actual, pos_objetivo, motorI, motorD, vel_base):
     '''Controlar la orientación del robot'''
     Kp = 0.5
     # Calcular el error de orientación
-    orientacion_deseada = math.atan2(pos_objetivo[1] - pos_actual[1], pos_objetivo[0] - pos_actual[0])*180 / math.pi
+    orientacion_deseada = math.atan2(pos_objetivo[0] - pos_actual[0], pos_objetivo[1] - pos_actual[1])*180 / math.pi
     error_orientacion = float(orientacion_deseada) - float(pos_actual[2])
     # Normalizar el error de orientación
     if error_orientacion > 180:
@@ -220,7 +220,7 @@ def control_orientacion(pos_actual, pos_objetivo, motorI, motorD, vel_base):
 def avance(velocidad, motorD, motorI, pos_actual, pos_objetivo):
     motorD.start()
     duty = velocidad * 1023 / 100
-    control_orientacion(pos_actual[2], pos_objetivo, motorI, motorD, duty)
+    control_orientacion(pos_actual, pos_objetivo, motorI, motorD, duty)
 
 
 # ------------------- CONFIGURACIÃN DEL MPU6050 -------------------
@@ -290,45 +290,49 @@ def actualizar_posicion(x, y, orientacion, delta_dist):
 while True:
     # Leer velocidad angular en eje X y compensar offset
     now = ticks_ms()
-
-    # aqui se leen todos los sensores
-    if ticks_diff(now, last_time) >= sample_time:
-        gx = read_word(GYRO_XOUT_H)
-        gyro_x = gx / 131.0 - gyro_x_offset  # Â°/s reales
-
-        # Tiempo transcurrido desde la Ãºltima lectura
-        now = ticks_ms()
-        dt = ticks_diff(now, last_time) / 1000.0  # segundos
-        last_time = now
-
-        # Integrar para obtener Ã¡ngulo acumulado
-        theta -= gyro_x * dt
-
-        # Normalizar a rango 0â360Â°
-        theta = (theta + 360) % 360
-
-        #Si el robot está en fase de traslación actualizo sus coordenadas (x,y)   
-        # Guardar pulsos actuales y calcular delta
-        irq_state = machine.disable_irq()
-        delta_i = pulsos_i - prev_pulsos_i
-        delta_d = pulsos_d - prev_pulsos_d
-        prev_pulsos_i = pulsos_i
-        prev_pulsos_d = pulsos_d
-        machine.enable_irq(irq_state)
-
-        # Distancia por rueda (en cm)
-        dist_i = delta_i * DIST_POR_PULSO
-        dist_d = delta_d * DIST_POR_PULSO
-
-        # Distancia recorrida media del robot
-        delta_dist = (dist_i + dist_d) / 2
-
-        # Actualizar posición
-        x, y = actualizar_posicion(x, y, theta, delta_dist)
-        avance(30, motorD, motorI, (x,y,theta), (0,100))
-
-
-    if y>100:
+    if switch.value() == 0:
         motorD.stop()
-        motorI.stop()     
-        sleep_ms(3000)
+        motorI.stop()
+        break
+    else:
+        # aqui se leen todos los sensores
+        if ticks_diff(now, last_time) >= sample_time:
+            gx = read_word(GYRO_XOUT_H)
+            gyro_x = gx / 131.0 - gyro_x_offset  # Â°/s reales
+
+            # Tiempo transcurrido desde la Ãºltima lectura
+            now = ticks_ms()
+            dt = ticks_diff(now, last_time) / 1000.0  # segundos
+            last_time = now
+
+            # Integrar para obtener Ã¡ngulo acumulado
+            theta -= gyro_x * dt
+
+            # Normalizar a rango 0â360Â°
+            theta = (theta + 360) % 360
+
+            #Si el robot está en fase de traslación actualizo sus coordenadas (x,y)   
+            # Guardar pulsos actuales y calcular delta
+            irq_state = machine.disable_irq()
+            delta_i = pulsos_i - prev_pulsos_i
+            delta_d = pulsos_d - prev_pulsos_d
+            prev_pulsos_i = pulsos_i
+            prev_pulsos_d = pulsos_d
+            machine.enable_irq(irq_state)
+
+            # Distancia por rueda (en cm)
+            dist_i = delta_i * DIST_POR_PULSO
+            dist_d = delta_d * DIST_POR_PULSO
+
+            # Distancia recorrida media del robot
+            delta_dist = (dist_i + dist_d) / 2
+
+            # Actualizar posición
+            x, y = actualizar_posicion(x, y, theta, delta_dist)
+            avance(30, motorD, motorI, (x,y,theta), (0,100))
+
+
+        if y>100:
+            motorD.stop()
+            motorI.stop()     
+            sleep_ms(30000)
