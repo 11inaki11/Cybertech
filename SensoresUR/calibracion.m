@@ -1,8 +1,9 @@
-% Datos medidos
-voltajes_dorado = [1.82, 1.61,1.45, 1.32, 1.2, 1.10, 1.05, 1, 0.92, 0.88, 0.85, 0.81, 0.78, 0.74, 0.7, 0.68, 0.66, 0.64, 0.63, 0.60, 0.58, 0.56, 0.55, 0.54];  % en V
-voltajes_azul = [1.89, 1.64, 1.48, 1.38, 1.28, 1.13, 1.05, 1, 0.96, 0.91, 0.88, 0.84, 0.8, 0.77, 0.73, 0.7, 0.66, 0.65, 0.62, 0.62, 0.61, 0.57, 0.55, 0.56];
-voltajes_rosa = [1.86, 1.64, 1.47, 1.32, 1.19, 1.13 ,1.05, 0.97, 0.93, 0.86, 0.81, 0.8, 0.75, 0.74, 0.68, 0.68, 0.65, 0.64, 0.63, 0.6, 0.61, 0.58, 0.56, 0.54];
-distancias = [2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7,  7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14];                % en cm
+% Leer el CSV generado por el ESP32
+datos = readtable('datos_ir_frontal.csv');
+
+% Extraer columnas
+voltajes = datos.voltaje_v;
+distancias = datos.distancia_cm;
 
 % Modelo: d = a / (v - b)
 modelo = @(p, v) p(1) ./ (v - p(2));  % p(1) = a, p(2) = b
@@ -11,7 +12,7 @@ modelo = @(p, v) p(1) ./ (v - p(2));  % p(1) = a, p(2) = b
 p0 = [10, 0.1];
 
 % Ajuste no lineal (mínimos cuadrados)
-p_opt = lsqcurvefit(modelo, p0, voltajes_rosa, distancias);
+p_opt = lsqcurvefit(modelo, p0, voltajes, distancias);
 
 % Parámetros ajustados
 a = p_opt(1);
@@ -19,15 +20,15 @@ b = p_opt(2);
 fprintf('Parámetros ajustados: a = %.4f, b = %.4f\n', a, b);
 
 % Evaluar modelo ajustado para graficar
-v_fit = linspace(min(voltajes_rosa), max(voltajes_rosa), 200);
+v_fit = linspace(min(voltajes), max(voltajes), 200);
 d_fit = modelo(p_opt, v_fit);
 
 % Gráfica
 figure;
-plot(voltajes_rosa, distancias, 'ro', 'MarkerSize', 8, 'LineWidth', 2); hold on;
+plot(voltajes, distancias, 'ko', 'MarkerSize', 6, 'LineWidth', 1.5); hold on;
 plot(v_fit, d_fit, 'b-', 'LineWidth', 2);
 xlabel('Voltaje (V)', 'FontSize', 14);
 ylabel('Distancia (cm)', 'FontSize', 14);
-title('Curva ajustada: Distancia vs Voltaje', 'FontSize', 16);
-legend('Datos reales', 'Ajuste no lineal', 'Location', 'northeast');
+title('Curva calibración IR: Distancia vs Voltaje', 'FontSize', 16);
+legend('Datos del sensor', 'Ajuste no lineal', 'Location', 'northeast');
 grid on;
