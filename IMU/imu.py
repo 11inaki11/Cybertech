@@ -1,4 +1,4 @@
-from machine import Pin, I2C, PWM
+from machine import Pin, I2C, PWM, ADC
 from time import ticks_ms, ticks_diff, sleep_ms
 import math
 import machine
@@ -57,6 +57,38 @@ def encoderD_cb(pin):
 
 encoderI.irq(trigger=Pin.IRQ_RISING, handler=encoderI_cb)
 encoderD.irq(trigger=Pin.IRQ_RISING, handler=encoderD_cb)
+
+# ------------------- CONFIGURACIÓN IR -------------------
+# Pines IR
+irI = ADC(Pin(1))
+irC = ADC(Pin(2))
+irD = ADC(Pin(3))
+irI.atten(ADC.ATTN_11DB)
+irC.atten(ADC.ATTN_11DB)
+irD.atten(ADC.ATTN_11DB)
+irI.width(ADC.WIDTH_12BIT)
+irC.width(ADC.WIDTH_12BIT)
+irD.width(ADC.WIDTH_12BIT)
+# Función para leer voltaje
+
+
+def leer_voltaje(ir):
+    raw = ir.read()
+    return raw * (3.3 / 4095)
+# Función para convertir voltaje a distancia
+
+
+def voltaje_a_distancia(v):
+    if v < 0.3 or v > 2.2:
+        return None
+    return 4.9039 / (v - 0.0808)
+# Función para leer distancia
+
+
+def leer_distancia(ir):
+    volt = leer_voltaje(ir)
+    distancia = voltaje_a_distancia(volt)
+    return distancia
 
 # ------------------- CLASE MOTORES -------------------
 
@@ -126,7 +158,7 @@ def giroCW(velocidad, motorD, motorI):
 
 
 def giroCCW(velocidad, motorD, motorI):
-    duty = velocidad * 1023 /100
+    duty = velocidad * 1023 / 100
     motorD.duty = duty
     motorI.duty = duty
     motorD.move(BACKWARD)
@@ -139,7 +171,8 @@ def giro(sentido, velocidad, motorD, motorI):
         giroCW(velocidad, motorD, motorI)
     elif sentido == COUNTERCLOCKWISE:
         giroCCW(velocidad, motorD, motorI)
-      
+
+
 # ------------------- CONFIGURACIÃN DEL MPU6050 -------------------
 # DirecciÃ³n del MPU6050 y registro de encendido
 MPU_ADDR = 0x68
@@ -192,12 +225,14 @@ completo2 = 0
 while True:
     # Leer velocidad angular en eje X y compensar offset
     now = ticks_ms()
+    """
     if switch.value() == 1 and girando == 0 and completo == 0:
         # Iniciar giro en sentido horario a 50% de velocidad
         giro(CLOCKWISE, 15, motorD, motorI)
         girando = 1
         print("Giro iniciado. OrientaciÃ³n X: {:.2f}Â°".format(orientation_x))
-
+    """
+    # aqui se leen todos los sensores
     if ticks_diff(now, last_time) >= sample_time:
         gx = read_word(GYRO_XOUT_H)
         gyro_x = gx / 131.0 - gyro_x_offset  # Â°/s reales
@@ -211,8 +246,8 @@ while True:
         orientation_x += gyro_x * dt
 
         # Normalizar a rango 0â360Â°
-        #orientation_x = (orientation_x + 360) % 360
-
+        # orientation_x = (orientation_x + 360) % 360
+    """
     if girando == 1 and orientation_x < 90 and ticks_diff(now, last_time_w) >= 100:
         print("OrientaciÃ³n X: {:.2f}Â°".format(orientation_x))
         last_time_w = now
@@ -227,3 +262,4 @@ while True:
     elif switch.value() == 0 and completo:
         motorD.full_stop()
         motorI.full_stop()
+    """
