@@ -23,7 +23,7 @@ ENC_I = 6
 ENC_D = 5
 PIN_SW = 47
 
-# ------------------ CONFIGURACIÓN PINES ------------------
+# ------------------ CONFIGURACIÃN PINES ------------------
 
 
 def init_pwm(pin):
@@ -33,7 +33,7 @@ def init_pwm(pin):
 
 switch = Pin(PIN_SW, Pin.IN, Pin.PULL_UP)
 
-# ---------------- CONFIGURACIÓN DE ENCODERS ----------------
+# ---------------- CONFIGURACIÃN DE ENCODERS ----------------
 # Pines encoder
 encoderI = Pin(ENC_I, Pin.IN, Pin.PULL_UP)
 encoderD = Pin(ENC_D, Pin.IN, Pin.PULL_UP)
@@ -84,7 +84,7 @@ class MotorPID:
         self.pwm.duty(int(min(max(duty, 0), 1023)))
 
     def move(self, direction=FORWARD):
-        '''Mover el motor en la dirección especificada'''
+        '''Mover el motor en la direcciÃ³n especificada'''
         self.stby.value(1)
         if direction == FORWARD:
             self.forward(self.duty)
@@ -118,15 +118,17 @@ motorI = MotorPID(PWM_PIN_I, IN1_I, IN2_I, STBY)
 
 
 def giroCW(velocidad, motorD, motorI):
-    motorD.duty = velocidad
-    motorI.duty = velocidad
+    duty = velocidad * 1023/100
+    motorD.duty = duty
+    motorI.duty = duty
     motorD.move(FORWARD)
     motorI.move(BACKWARD)
 
 
 def giroCCW(velocidad, motorD, motorI):
-    motorD.duty = velocidad
-    motorI.duty = velocidad
+    duty = velocidad * 1023 /100
+    motorD.duty = duty
+    motorI.duty = duty
     motorD.move(BACKWARD)
     motorI.move(FORWARD)
 
@@ -137,10 +139,9 @@ def giro(sentido, velocidad, motorD, motorI):
         giroCW(velocidad, motorD, motorI)
     elif sentido == COUNTERCLOCKWISE:
         giroCCW(velocidad, motorD, motorI)
-
-
-# ------------------- CONFIGURACIÓN DEL MPU6050 -------------------
-# Dirección del MPU6050 y registro de encendido
+      
+# ------------------- CONFIGURACIÃN DEL MPU6050 -------------------
+# DirecciÃ³n del MPU6050 y registro de encendido
 MPU_ADDR = 0x68
 PWR_MGMT_1 = 0x6B
 GYRO_XOUT_H = 0x43  # Giroscopio eje X
@@ -149,7 +150,7 @@ GYRO_XOUT_H = 0x43  # Giroscopio eje X
 i2c = I2C(0, scl=Pin(12), sda=Pin(11), freq=400000)
 i2c.writeto_mem(MPU_ADDR, PWR_MGMT_1, b'\x00')  # Despertar el MPU6050
 
-# Función para leer registros de 16 bits con signo
+# FunciÃ³n para leer registros de 16 bits con signo
 
 
 def read_word(addr):
@@ -159,10 +160,10 @@ def read_word(addr):
     return value - 65536 if value > 32767 else value
 
 
-# ------------------- CALIBRACIÓN DEL OFFSET -------------------
+# ------------------- CALIBRACIÃN DEL OFFSET -------------------
 print("===================================")
-print("🔧 Calibrando giroscopio en eje X...")
-print("🛑 No mover el robot durante 1 segundo.")
+print("ð§ Calibrando giroscopio en eje X...")
+print("ð No mover el robot durante 1 segundo.")
 print("===================================")
 
 samples = 100
@@ -173,53 +174,55 @@ for _ in range(samples):
     sleep_ms(10)
 gyro_x_offset /= samples
 
-print("✅ Calibración completada.")
-print("Offset calculado en eje X: {:.3f} °/s".format(gyro_x_offset))
-print("🟢 Iniciando medición de orientación...\n")
+print("â CalibraciÃ³n completada.")
+print("Offset calculado en eje X: {:.3f} Â°/s".format(gyro_x_offset))
+print("ð¢ Iniciando mediciÃ³n de orientaciÃ³n...\n")
 
-# ------------------- CÁLCULO DE ÁNGULO -------------------
+# ------------------- CÃLCULO DE ÃNGULO -------------------
 orientation_x = 0.0
 last_time = ticks_ms()
 last_time_w = ticks_ms()
-sample_time = 20
-girando = 0  # Bandera para indicar si el robot ha girado más de 90°
+sample_time = 5
+girando = 0  # Bandera para indicar si el robot ha girado mÃ¡s de 90Â°
 completo = 0  # Bandera para indicar si el giro ha sido completado
-
+completo1 = 0
+completo2 = 0
 # ------------------- BUCLE PRINCIPAL -------------------
+
 while True:
     # Leer velocidad angular en eje X y compensar offset
     now = ticks_ms()
     if switch.value() == 1 and girando == 0 and completo == 0:
         # Iniciar giro en sentido horario a 50% de velocidad
-        giro(CLOCKWISE, 200, motorD, motorI)
+        giro(CLOCKWISE, 15, motorD, motorI)
         girando = 1
-        print("Giro iniciado. Orientación X: {:.2f}°".format(orientation_x))
+        print("Giro iniciado. OrientaciÃ³n X: {:.2f}Â°".format(orientation_x))
 
     if ticks_diff(now, last_time) >= sample_time:
         gx = read_word(GYRO_XOUT_H)
-        gyro_x = gx / 131.0 - gyro_x_offset  # °/s reales
+        gyro_x = gx / 131.0 - gyro_x_offset  # Â°/s reales
 
-        # Tiempo transcurrido desde la última lectura
+        # Tiempo transcurrido desde la Ãºltima lectura
         now = ticks_ms()
         dt = ticks_diff(now, last_time) / 1000.0  # segundos
         last_time = now
 
-        # Integrar para obtener ángulo acumulado
+        # Integrar para obtener Ã¡ngulo acumulado
         orientation_x += gyro_x * dt
 
-        # Normalizar a rango 0–360°
-        orientation_x = (orientation_x + 360) % 360
+        # Normalizar a rango 0â360Â°
+        #orientation_x = (orientation_x + 360) % 360
 
     if girando == 1 and orientation_x < 90 and ticks_diff(now, last_time_w) >= 100:
-        print("Orientación X: {:.2f}°".format(orientation_x))
+        print("OrientaciÃ³n X: {:.2f}Â°".format(orientation_x))
         last_time_w = now
 
-    if orientation_x > 90:
+    if abs(0 - orientation_x) > 88 and abs(0 - orientation_x) < 350:
         motorD.stop()
         motorI.stop()
         girando = 0
         completo = 1
-        print("Giro completado. Orientación X: {:.2f}°".format(orientation_x))
+        print("Giro completado. OrientaciÃ³n X: {:.2f}Â°".format(orientation_x))
 
     elif switch.value() == 0 and completo:
         motorD.full_stop()
