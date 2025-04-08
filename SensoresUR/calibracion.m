@@ -1,5 +1,5 @@
 % Leer el CSV generado por el ESP32
-datos = readtable('datos_ir_frontal.csv');
+datos = readtable('datos_ir_izquierdo.csv');
 
 % Extraer columnas
 voltajes = datos.voltaje_v;

@@ -3,7 +3,7 @@ from time import sleep
 import sys
 
 # Configuración del ADC
-adc = ADC(Pin(2))  # Cambia por tu pin
+adc = ADC(Pin(1))  # Cambia por tu pin
 adc.atten(ADC.ATTN_11DB)
 adc.width(ADC.WIDTH_12BIT)
 

@@ -1,7 +1,7 @@
 from machine import ADC, Pin
 from time import sleep
 
-adc = ADC(Pin(2))  # Cambia por tu pin
+adc = ADC(Pin(1))  # Cambia por tu pin
 adc.atten(ADC.ATTN_11DB)
 adc.width(ADC.WIDTH_12BIT)
 
@@ -12,7 +12,7 @@ def leer_voltaje():
 def voltaje_a_distancia(v):
     if v < 0.3 or v > 2.2:
         return None
-    return 4.9039 / (v - 0.0808)
+    return 4.6221 / (v - 0.0563)
 
 while True:
     volt = leer_voltaje()
