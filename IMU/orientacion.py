@@ -112,7 +112,7 @@ def leer_distancia(ir):
 # ------------------- CLASE MOTORES -------------------
 
 class MotorPID:
-    def __init__(self, pwm_pin, in1, in2, stby):
+    def _init_(self, pwm_pin, in1, in2, stby):
         self.pwm = init_pwm(pwm_pin)
         self.in1 = Pin(in1, Pin.OUT)
         self.in2 = Pin(in2, Pin.OUT)
@@ -192,29 +192,33 @@ def giro(sentido, velocidad, motorD, motorI):
 
 def control_orientacion(pos_actual, pos_objetivo, motorI, motorD, vel_base):
     '''Controlar la orientación del robot'''
-    Kp = 0.5
+    Kp = 3
     # Calcular el error de orientación
     orientacion_deseada = 90-math.atan2(pos_objetivo[1] - pos_actual[1], pos_objetivo[0] - pos_actual[0])*180 / math.pi
-
     error_orientacion = float(orientacion_deseada) - float(pos_actual[2])
-    # Normalizar el error de orientación
+    
+  # Normalizar el error de orientación
     if error_orientacion > 180:
         error_orientacion -= 360
     elif error_orientacion < -180:
         error_orientacion += 360
+
+    print(error_orientacion)
+    distancia = math.sqrt((pos_objetivo[0] - pos_actual[0])**2 + (pos_objetivo[1] - pos_actual[1])**2)
     # Calcular la velocidad de los motores
-    ajuste = Kp * error_orientacion
+    if distancia > 5:
+        ajuste = Kp * error_orientacion
 
-    # Calcular velocidad de cada motor
-    velocidad_I = vel_base - ajuste
-    velocidad_D = vel_base + ajuste
+        # Calcular velocidad de cada motor
+        velocidad_D = vel_base - ajuste
+        velocidad_I = vel_base + ajuste
 
-    # Limitar velocidad entre 0 y 1023
-    velocidad_I = max(0, min(1023, velocidad_I))
-    velocidad_D = max(0, min(1023, velocidad_D))
-    # Aplicar velocidades a los motores
-    motorI.duty = velocidad_I
-    motorD.duty = velocidad_D
+        # Limitar velocidad entre 0 y 1023
+        velocidad_I = max(0, min(1023, velocidad_I))
+        velocidad_D = max(0, min(1023, velocidad_D))
+        # Aplicar velocidades a los motores
+        motorI.duty = velocidad_I
+        motorD.duty = velocidad_D
     motorI.move()
     motorD.move()
 
@@ -330,10 +334,10 @@ while True:
 
             # Actualizar posición
             x, y = actualizar_posicion(x, y, theta, delta_dist)
-            avance(30, motorD, motorI, (x,y,theta), (0,100))
+            avance(30, motorD, motorI, (x,y,theta), (0,50))
 
 
-        if y>100:
+        if y>50:
             motorD.stop()
             motorI.stop()     
             sleep_ms(30000)
