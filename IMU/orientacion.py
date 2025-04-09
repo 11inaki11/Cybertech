@@ -194,7 +194,8 @@ def control_orientacion(pos_actual, pos_objetivo, motorI, motorD, vel_base):
     '''Controlar la orientación del robot'''
     Kp = 0.5
     # Calcular el error de orientación
-    orientacion_deseada = math.atan2(pos_objetivo[0] - pos_actual[0], pos_objetivo[1] - pos_actual[1])*180 / math.pi
+    orientacion_deseada = 90-math.atan2(pos_objetivo[1] - pos_actual[1], pos_objetivo[0] - pos_actual[0])*180 / math.pi
+
     error_orientacion = float(orientacion_deseada) - float(pos_actual[2])
     # Normalizar el error de orientación
     if error_orientacion > 180:
