@@ -205,13 +205,57 @@ def giro(sentido, velocidad, motorD, motorI):
     elif sentido == COUNTERCLOCKWISE:
         giroCCW(velocidad, motorD, motorI)
 
-def avance(velocidad, motorD, motorI):
+def control_orientacion(pos_actual, pos_objetivo, motorI, motorD, vel_base):
+    global corrigiendo_flag
+    '''Controlar la orientación del robot'''
+    Kp = 10
+    # Calcular el error de orientación
+    orientacion_deseada = 90-math.atan2(pos_objetivo[1] - pos_actual[1], pos_objetivo[0] - pos_actual[0])*180 / math.pi
+
+    error_orientacion = float(orientacion_deseada) - float(pos_actual[2])
+    
+    
+  # Normalizar el error de orientación
+    if error_orientacion > 180:
+        error_orientacion -= 360
+    elif error_orientacion < -180:
+        error_orientacion += 360
+
+    if (abs(error_orientacion) > 10) or (corrigiendo_flag == 1):
+        print('corrigiendo_flag')
+        corrigiendo_flag = 1
+        if(error_orientacion > 2):
+            giro(COUNTERCLOCKWISE, 20, motorD, motorI)  
+        elif(error_orientacion < -2):
+            giro(CLOCKWISE, 20, motorD, motorI)
+        else:
+            corrigiendo_flag = 0
+    else:
+        # Calcular la velocidad de los motores
+        ajuste = Kp * error_orientacion
+    
+        # Calcular velocidad de cada motor
+        velocidad_D = vel_base - ajuste
+        velocidad_I = vel_base + ajuste
+    
+        # Limitar velocidad entre 0 y 1023
+        velocidad_I = max(0, min(1023, velocidad_I))
+        velocidad_D = max(0, min(1023, velocidad_D))
+        # Aplicar velocidades a los motores
+        motorI.duty = velocidad_I
+        motorD.duty = velocidad_D
+        motorI.move()
+        motorD.move()
+
+def avance(velocidad, motorD, motorI, pos_actual, pos_objetivo):
     motorD.start()
-    duty = velocidad * 1023 / 100
-    motorD.duty = duty
-    motorI.duty = duty
-    motorI.move(FORWARD)
-    motorD.move(FORWARD)
+    distancia = math.sqrt((pos_objetivo[0] - pos_actual[0])**2 + (pos_objetivo[1] - pos_actual[1])**2)
+    if (distancia > 5):
+      duty = velocidad * 1023 / 100
+      control_orientacion(pos_actual, pos_objetivo, motorI, motorD, duty)
+    else:
+      motorI.move()
+      motorD.move()
 
 # ------------------- CONFIGURACIÃN DEL MPU6050 -------------------
 # DirecciÃ³n del MPU6050 y registro de encendido
@@ -750,7 +794,7 @@ while True:
                     y_objetivo=delta_y+y
                 moviendo = 1
             
-            avance(15, motorD, motorI) #Avanza a 15% de velocidad
+            avance(15, motorD, motorI, (x, y, theta), (x_objetivo, y_objetivo)) #Avanza a 15% de velocidad
             if mov_x==1:
                 diff=abs(x_objetivo-x)
                 if diff <= 0.2:
@@ -820,7 +864,7 @@ while True:
                         moviendo = True
                         x_objetivo = movimiento_actual[0]
                         y_objetivo = movimiento_actual[1]
-                        avance(15, motorD, motorI)
+                        avance(15, motorD, motorI, (x, y, theta), (x_objetivo, y_objetivo))
 
                     if moviendo:
                         if abs(x - x_objetivo) <= 0.2 and abs(y - y_objetivo) <= 0.2:
@@ -855,6 +899,13 @@ while True:
 
         if indice_resolucion < len(camino_resolucion):
             punto_objetivo = camino_resolucion[indice_resolucion]
+            x_objetivo = punto_objetivo[0]
+            y_objetivo = punto_objetivo[1]
+            avance(40, motorD, motorI, (x, y, theta), (x_objetivo, y_objetivo))
+            if abs(x - x_objetivo) <= 0.2 and abs(y - y_objetivo) <= 0.2:
+
+                indice_resolucion += 1
+            """"
             giro_objetivo = giros_resolucion[indice_resolucion]
 
             # Calcular el giro necesario
@@ -891,7 +942,7 @@ while True:
                 if not moviendo:
                     x_objetivo = punto_objetivo[0]
                     y_objetivo = punto_objetivo[1]
-                    avance(15, motorD, motorI)
+                    avance(15, motorD, motorI, (x, y, theta), (x_objetivo, y_objetivo))
                     moviendo = True
 
                 if moviendo:
@@ -903,7 +954,7 @@ while True:
 
             elif not girando and delta_direccion != 0:
                 indice_resolucion += 1  # Una vez girado, paso siguiente
-
+            """
         else:
             print("🎉 Resolución del laberinto completada.")
             resolviendo = False
