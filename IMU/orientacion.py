@@ -14,6 +14,9 @@ PERIMETRO = math.pi * DIAMETRO
 DIST_POR_PULSO = PERIMETRO/ PULSOS_POR_VUELTA
 
 
+corrigiendo_flag = 0
+
+
 # ---------------- SETUP DE PINES ----------------
 # Pines (los mismos que usabas)
 PWM_PIN_D = 21
@@ -47,13 +50,15 @@ pulsos_d = 0
 
 
 def encoderI_cb(pin):
-    global pulsos_i
-    pulsos_i += 1
+    if (corrigiendo_flag == 0):
+        global pulsos_i
+        pulsos_i += 1
 
 
 def encoderD_cb(pin):
-    global pulsos_d
-    pulsos_d += 1
+    if (corrigiendo_flag == 0):
+        global pulsos_d
+        pulsos_d += 1
 
 
 encoderI.irq(trigger=Pin.IRQ_RISING, handler=encoderI_cb)
@@ -112,7 +117,7 @@ def leer_distancia(ir):
 # ------------------- CLASE MOTORES -------------------
 
 class MotorPID:
-    def _init_(self, pwm_pin, in1, in2, stby):
+    def __init__(self, pwm_pin, in1, in2, stby):
         self.pwm = init_pwm(pwm_pin)
         self.in1 = Pin(in1, Pin.OUT)
         self.in2 = Pin(in2, Pin.OUT)
@@ -185,17 +190,21 @@ def giroCCW(velocidad, motorD, motorI):
 
 def giro(sentido, velocidad, motorD, motorI):
     motorD.start()
+    print('girando')
     if sentido == CLOCKWISE:
         giroCW(velocidad, motorD, motorI)
     elif sentido == COUNTERCLOCKWISE:
         giroCCW(velocidad, motorD, motorI)
 
 def control_orientacion(pos_actual, pos_objetivo, motorI, motorD, vel_base):
+    global corrigiendo_flag
     '''Controlar la orientación del robot'''
-    Kp = 3
+    Kp = 10
     # Calcular el error de orientación
     orientacion_deseada = 90-math.atan2(pos_objetivo[1] - pos_actual[1], pos_objetivo[0] - pos_actual[0])*180 / math.pi
+
     error_orientacion = float(orientacion_deseada) - float(pos_actual[2])
+    
     
   # Normalizar el error de orientación
     if error_orientacion > 180:
@@ -203,30 +212,42 @@ def control_orientacion(pos_actual, pos_objetivo, motorI, motorD, vel_base):
     elif error_orientacion < -180:
         error_orientacion += 360
 
-    print(error_orientacion)
-    distancia = math.sqrt((pos_objetivo[0] - pos_actual[0])**2 + (pos_objetivo[1] - pos_actual[1])**2)
-    # Calcular la velocidad de los motores
-    if distancia > 5:
+    if (abs(error_orientacion) > 10) or (corrigiendo_flag == 1):
+        print('corrigiendo_flag')
+        corrigiendo_flag = 1
+        if(error_orientacion > 2):
+            giro(COUNTERCLOCKWISE, 20, motorD, motorI)  
+        elif(error_orientacion < -2):
+            giro(CLOCKWISE, 20, motorD, motorI)
+        else:
+            corrigiendo_flag = 0
+    else:
+        # Calcular la velocidad de los motores
         ajuste = Kp * error_orientacion
-
+    
         # Calcular velocidad de cada motor
         velocidad_D = vel_base - ajuste
         velocidad_I = vel_base + ajuste
-
+    
         # Limitar velocidad entre 0 y 1023
         velocidad_I = max(0, min(1023, velocidad_I))
         velocidad_D = max(0, min(1023, velocidad_D))
         # Aplicar velocidades a los motores
         motorI.duty = velocidad_I
         motorD.duty = velocidad_D
-    motorI.move()
-    motorD.move()
+        motorI.move()
+        motorD.move()
 
 def avance(velocidad, motorD, motorI, pos_actual, pos_objetivo):
     motorD.start()
-    duty = velocidad * 1023 / 100
-    control_orientacion(pos_actual, pos_objetivo, motorI, motorD, duty)
-
+    distancia = math.sqrt((pos_objetivo[0] - pos_actual[0])**2 + (pos_objetivo[1] - pos_actual[1])**2)
+    if (distancia > 5):
+      duty = velocidad * 1023 / 100
+      control_orientacion(pos_actual, pos_objetivo, motorI, motorD, duty)
+    else:
+      motorI.move()
+      motorD.move()
+      
 
 # ------------------- CONFIGURACIÃN DEL MPU6050 -------------------
 # DirecciÃ³n del MPU6050 y registro de encendido
@@ -316,7 +337,7 @@ while True:
             # Normalizar a rango 0â360Â°
             theta = (theta + 360) % 360
 
-            #Si el robot está en fase de traslación actualizo sus coordenadas (x,y)   
+            #Si el robot está en fase de traslación actualizo sus coordenadas (x,y)
             # Guardar pulsos actuales y calcular delta
             irq_state = machine.disable_irq()
             delta_i = pulsos_i - prev_pulsos_i
@@ -334,10 +355,12 @@ while True:
 
             # Actualizar posición
             x, y = actualizar_posicion(x, y, theta, delta_dist)
-            avance(30, motorD, motorI, (x,y,theta), (0,50))
+            avance(30, motorD, motorI, (x,y,theta), (20,20))
 
 
-        if y>50:
+        if x>20 and y>20:
             motorD.stop()
-            motorI.stop()     
-            sleep_ms(30000)
+            motorI.stop()    
+            print(x)
+            print(y)
+            break
