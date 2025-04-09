@@ -303,6 +303,8 @@ paso_actual = 0 #Variable que indica el paso actual del backtracking
 backtracking_completado = False #Indica si el backtracking ha sido completado
 guardado_final = False  # Bandera que indica si el camino final ha sido guardado
 
+resolviendo = False #Indica si el robot está en fase de resolución del laberinto
+
 
 orientacion_objetivo = 0 #Variable que indica la orientación objetivo del robot para su siguiente movimiento
 distancia_objetivo = 0 #Variable que indica la distancia objetivo del robot para su siguiente movimiento
@@ -843,6 +845,69 @@ while True:
     estado_anterior = estado_actual
 
     if switch.value() == 1:
+        if not resolviendo:
+            print("🚀 Iniciando fase de resolución del laberinto...")
+            resolviendo = True
+            indice_resolucion = 0
+            orientacion_objetivo = None
+            girando = False
+            moviendo = False
+
+        if indice_resolucion < len(camino_resolucion):
+            punto_objetivo = camino_resolucion[indice_resolucion]
+            giro_objetivo = giros_resolucion[indice_resolucion]
+
+            # Calcular el giro necesario
+            if giro_objetivo == 'derecha':
+                delta_direccion = 90
+            elif giro_objetivo == 'izquierda':
+                delta_direccion = -90
+            elif giro_objetivo == 'u':
+                delta_direccion = 180
+            else:
+                delta_direccion = 0
+
+            # Ejecutar giro si es necesario
+            if delta_direccion != 0 and orientacion_objetivo is None:
+                orientacion_objetivo = (theta + delta_direccion) % 360
+                angulo_rotacion = ((orientacion_objetivo - theta + 180) % 360) - 180
+                girando = True
+
+            if girando:
+                if angulo_rotacion > 0:
+                    giro(CLOCKWISE, 15, motorD, motorI)
+                else:
+                    giro(COUNTERCLOCKWISE, 15, motorD, motorI)
+
+                diff = ((theta - orientacion_objetivo + 180) % 360) - 180
+                if abs(diff) <= 2:
+                    motorD.stop()
+                    motorI.stop()
+                    girando = False
+                    orientacion_objetivo = None  # Reset
+
+            # Si no gira, avanza
+            if not girando and delta_direccion == 0:
+                if not moviendo:
+                    x_objetivo = punto_objetivo[0]
+                    y_objetivo = punto_objetivo[1]
+                    avance(15, motorD, motorI)
+                    moviendo = True
+
+                if moviendo:
+                    if abs(x - x_objetivo) <= 0.2 and abs(y - y_objetivo) <= 0.2:
+                        motorD.stop()
+                        motorI.stop()
+                        moviendo = False
+                        indice_resolucion += 1
+
+            elif not girando and delta_direccion != 0:
+                indice_resolucion += 1  # Una vez girado, paso siguiente
+
+        else:
+            print("🎉 Resolución del laberinto completada.")
+            resolviendo = False
+
 
 
 
